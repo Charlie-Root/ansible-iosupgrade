@@ -6,7 +6,7 @@
   gather_facts: no
   
   vars:
-    compliant_ios_version: 16.08.01a
+    compliant_ios_version: {{hostvars[inventory_hostname].version}}
     roles:
       - ios_upgrade
 
