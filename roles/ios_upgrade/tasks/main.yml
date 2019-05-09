@@ -1,0 +1,41 @@
+  - name: BACKUP CONFIG
+    ios_command:
+      commands:
+      - show run
+        host: "{{ ansible_host }}"
+        register: config
+  - name: Save Backup To File
+    copy:
+      content: "{{ config.stdout[0] }}"
+      dest: "/var/tmp/backups/show_run_{{ inventory_hostname }}_{{ creationdate }}.txt"
+
+  - name: UPGRADE IOS IMAGE IF NOT COMPLIANT
+    block:
+    - name: COPY OVER IOS IMAGE
+      command: "scp files/ios-{{hostvars[inventory_hostname].version}}.bin {{inventory_hostname}}:/ios-{{hostvars[inventory_hostname].version}}.bin"
+
+  - name: SET BOOT SYSTEM FLASH
+    ios_config:
+      commands:
+        - "boot system flash:ios-{{hostvars[inventory_hostname].version}}.bin"
+
+  - name: REBOOT ROUTER
+    ios_command:
+      commands:
+        - "reload\ny\n"
+
+  - name: WAIT FOR ROUTER TO RETURN
+    wait_for:
+      host: "{{inventory_hostname}}"
+      port: 22
+      delay: 300
+    delegate_to: localhost
+    when: ansible_net_version != compliant_ios_version
+
+  - name: GATHER ROUTER FACTS FOR VERIFICATION
+    ios_facts:
+
+  - name: ASSERT THAT THE IOS VERSION IS CORRECT
+    assert:
+      that:
+        - compliant_ios_version == ansible_net_version
